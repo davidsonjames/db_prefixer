@@ -40,26 +40,88 @@ function db_prefixer_settings() {
  */
 function db_prefixer_form($form, &$form_state) {
 
-  $query = db_query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='drupal7_one'");
+  global $databases;
+  $default = $databases['default']['default']['database'];
+  $query = db_query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA=:default", array(':default' => $default));
   $result = $query->fetchAll();
 
-  $tables = $result;
-
-  foreach($tables as $table) {
-    $options[$table->table_name] = $table->table_name;
+  $other_dbs = array(0 => 'default');
+  foreach ($databases as $key => $database) {
+    if ($key != 'default') {
+      foreach ($database as $key => $db) {
+        $other_dbs[$db['database']] = $db['database'];
+      }
+    }
   }
 
-  $form['text'] = array(
-    '#title' => t('This installs tables'),
-    '#type' => 'checkboxes',
-    '#options' => $options,
+  $prefixed_tables = variable_get('db_prefixer_tables');
+  $tables = $result;
+  $form_state['tables'] = array();
+  foreach($tables as $table) {
+    $form[$table->table_name] = array(
+      '#type' => 'select',
+      '#title' => $table->table_name,
+      '#options' => $other_dbs,
+      '#default_value' => isset($prefixed_tables[$table->table_name]) ? $prefixed_tables[$table->table_name] : 0,
+    );
 
+    $form_state['tables'][] = $table->table_name;
+  }
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#values' => t('Submit'),
   );
 
   return $form;
 }
 
 
-function db_prefix_tables() {
+function db_prefixer_form_submit($form, $form_state) {
+  $values = $form_state['values'];
 
+  $prefixes = array();
+  foreach ($form_state['tables'] as $table) {
+    if (isset($values[$table]) && $values[$table] !== '0') {
+      $prefixes[$table] = $values[$table];
+    }
+  }
+
+  variable_set('db_prefixer_tables', $prefixes);
+}
+
+
+/**
+ * Alter and return the array of fields which will be db_prefixed
+ *
+ * @param $prefix
+ *   Array of tables and databases to be prefixed.
+ */
+function db_prefixer_tables(&$prefix = NULL, $databases = NULL) {
+
+  $default = $databases['default']['default'];
+
+  $link = mysql_connect($default['host'], $default['username'], $default['password']);
+  if (!$link) {
+    print 'error';
+  }
+
+  mysql_select_db($default['database']) or die(mysql_error());
+
+  $sql="SELECT value FROM variable WHERE name = 'db_prefixer_tables'";
+
+  // Execute query
+  $result = mysql_query($sql);
+  if (!$result) {
+    die('Invalid query: ' . mysql_error());
+  }
+
+  mysql_close($link);
+
+  $tables_ser = mysql_fetch_row($result);
+  $tables = unserialize($tables_ser[0]);
+
+  foreach ($tables as $table => $database) {
+    $prefix[$table] = $database . '.';
+  }
 }
