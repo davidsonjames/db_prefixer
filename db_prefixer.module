@@ -1,0 +1,65 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: james
+ * Date: 24/09/2013
+ * Time: 14:59
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function db_prefixer_menu() {
+  return array(
+    'admin/config/db_prefixer' => array(
+      'name' => t('DB Prefixer'),
+      'description' => t('Select fields to be prefixed in settings'),
+      'page callback' => 'db_prefixer_settings',
+      'access callback' => TRUE,
+    ),
+  );
+}
+
+
+/**
+ * Settings page callback.
+ *
+ * @return renderable form object
+ */
+function db_prefixer_settings() {
+  return drupal_get_form('db_prefixer_form');
+}
+
+
+/**
+ * Settings form.
+ *
+ * @param $form
+ * @param $form_state
+ * @return form array
+ */
+function db_prefixer_form($form, &$form_state) {
+
+  $query = db_query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='drupal7_one'");
+  $result = $query->fetchAll();
+
+  $tables = $result;
+
+  foreach($tables as $table) {
+    $options[$table->table_name] = $table->table_name;
+  }
+
+  $form['text'] = array(
+    '#title' => t('This installs tables'),
+    '#type' => 'checkboxes',
+    '#options' => $options,
+
+  );
+
+  return $form;
+}
+
+
+function db_prefix_tables() {
+
+}

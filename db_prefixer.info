@@ -1,0 +1,3 @@
+name = DB Prefixer
+description = Prefix certain tables for this drupal build through UX.
+core = 7.x
